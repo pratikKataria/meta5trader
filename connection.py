@@ -2,8 +2,8 @@
 # connection.py — MT5 init, login, shutdown
 # ==========================
 
-import MetaTrader5 as mt5
-
+from mt5linux import MetaTrader5
+mt5 = MetaTrader5(host='localhost', port=18812)
 import config
 
 
