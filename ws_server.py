@@ -13,59 +13,58 @@ import websockets
 import config
 
 
-# Map of websocket -> set of symbols for that client
 CLIENTS: dict[any, set[str]] = {}
 
 
-def get_ticks_for(symbols: set[str]) -> list[dict]:
-    """Fetch latest tick only for the given symbols."""
-    ticks = []
+def validate_symbols(requested: set[str]) -> tuple[set[str], set[str]]:
+    """
+    Check each requested symbol against MT5.
+    Returns (valid, invalid) sets.
+    """
+    valid   = set()
+    invalid = set()
 
-    for symbol in symbols:
-        tick = mt5.symbol_info_tick(symbol)
+    for symbol in requested:
+        info = mt5.symbol_info(symbol)
+        if info is not None:
+            mt5.symbol_select(symbol, True)  # enable in Market Watch
+            valid.add(symbol)
+        else:
+            invalid.add(symbol)
 
-        if tick is not None:
-            ticks.append({
-                "symbol": symbol,
-                "bid":    tick.bid,
-                "ask":    tick.ask,
-                "time":   datetime.now().isoformat(),
-            })
-
-    return ticks
+    return valid, invalid
 
 
 def parse_symbols(websocket) -> set[str]:
-    """Extract and validate ?symbols= from the connection URL."""
+    """Extract symbols from ?symbols= query param and validate against MT5."""
     try:
-        path  = websocket.request.path          # e.g. /?symbols=EURUSD,XAUUSD
-        query = parse_qs(urlparse(path).query)  # {'symbols': ['EURUSD,XAUUSD']}
-        raw   = query.get("symbols", [""])[0]
-
+        path      = websocket.request.path
+        query     = parse_qs(urlparse(path).query)
+        raw       = query.get("symbols", [""])[0]
         requested = {s.strip().upper() for s in raw.split(",") if s.strip()}
 
-        # Only allow symbols that are in config + exist in MT5
-        valid = {s for s in requested if s in config.SYMBOLS}
+        if not requested:
+            return set()
 
-        # Warn about unknown symbols
-        unknown = requested - valid
-        if unknown:
-            print(f"  [!] Unknown symbols ignored: {unknown}")
+        valid, invalid = validate_symbols(requested)
 
-        return valid if valid else set(config.SYMBOLS)  # fallback: all symbols
+        if invalid:
+            print(f"  [!] Invalid/unknown MT5 symbols ignored: {invalid}")
 
-    except Exception:
-        return set(config.SYMBOLS)
+        return valid
+
+    except Exception as e:
+        print(f"  [!] parse_symbols error: {e}")
+        return set()
 
 
 async def broadcast_ticks() -> None:
     """Push ticks to every connected client, filtered to their watchlist."""
     while True:
         if CLIENTS:
-            # Collect all unique symbols needed across all clients
             all_needed = set().union(*CLIENTS.values())
 
-            # Fetch once per unique symbol
+            # Fetch once per unique symbol across all clients
             tick_map: dict[str, dict] = {}
             for symbol in all_needed:
                 tick = mt5.symbol_info_tick(symbol)
@@ -95,19 +94,24 @@ async def broadcast_ticks() -> None:
 
 
 async def handler(websocket) -> None:
-    """Register client with their requested symbols, stream until disconnect."""
+    """Register client, validate their symbols against MT5, stream until disconnect."""
     symbols = parse_symbols(websocket)
+    addr    = websocket.remote_address
+
+    if not symbols:
+        # Send error and close if no valid symbols provided
+        await websocket.send(json.dumps({
+            "error": "No valid symbols. Provide ?symbols=EURUSD,XAUUSD etc."
+        }))
+        await websocket.close()
+        print(f"[!] Rejected client {addr} — no valid symbols")
+        return
+
     CLIENTS[websocket] = symbols
-
-    addr = websocket.remote_address
-    print(f"[+] Client connected: {addr}  |  Symbols: {symbols}  |  Total clients: {len(CLIENTS)}")
-
-    # Enable any newly requested symbols in MT5
-    for symbol in symbols:
-        mt5.symbol_select(symbol, True)
+    print(f"[+] Client connected: {addr}  |  Symbols: {symbols}  |  Total: {len(CLIENTS)}")
 
     try:
         await websocket.wait_closed()
     finally:
         CLIENTS.pop(websocket, None)
-        print(f"[-] Client disconnected: {addr}  |  Total clients: {len(CLIENTS)}")
+        print(f"[-] Client disconnected: {addr}  |  Total: {len(CLIENTS)}")
