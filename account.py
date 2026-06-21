@@ -2,8 +2,8 @@
 # account.py — Account info display
 # ==========================
 
-import MetaTrader5 as mt5
-
+from mt5linux import MetaTrader5
+mt5 = MetaTrader5(host='localhost', port=18812)
 
 def print_account_info() -> None:
     """Fetch and display the current account details."""
