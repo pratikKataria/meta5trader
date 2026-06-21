@@ -4,12 +4,14 @@
 
 from mt5linux import MetaTrader5
 mt5 = MetaTrader5(host='localhost', port=18812)
+
 import config
 
 
 def initialize() -> None:
     """Initialize the MT5 terminal. Exits the program on failure."""
-    if not mt5.initialize(config.MT5_PATH):
+    # No path needed on Linux — MT5 is already running in Docker via Wine
+    if not mt5.initialize():
         print("Initialize failed:", mt5.last_error())
         quit()
 

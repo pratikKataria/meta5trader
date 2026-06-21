@@ -3,7 +3,6 @@
 # ==========================
 
 import asyncio
-
 import websockets
 
 import config
@@ -15,7 +14,6 @@ import ws_server
 
 
 async def main() -> None:
-    # ── MT5 setup ──
     connection.initialize()
     connection.login()
 
@@ -23,10 +21,10 @@ async def main() -> None:
     symbols.enable_symbols()
     market_data.print_historical_candles()
 
-    print(f"WebSocket server on ws://localhost:{config.WS_PORT}\n")
+    # 0.0.0.0 so EC2 external clients can connect
+    print(f"WebSocket server on ws://0.0.0.0:{config.WS_PORT}\n")
 
-    # ── Run WebSocket server only ──
-    async with websockets.serve(ws_server.handler, "localhost", config.WS_PORT):
+    async with websockets.serve(ws_server.handler, "0.0.0.0", config.WS_PORT):
         await ws_server.broadcast_ticks()
 
 

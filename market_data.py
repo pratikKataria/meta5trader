@@ -6,8 +6,7 @@ import asyncio
 import time
 from datetime import datetime
 
-import MetaTrader5 as mt5
-
+from connection import mt5   # ← shared mt5linux instance
 import config
 
 
@@ -35,34 +34,22 @@ def stream_live_ticks() -> None:
     while True:
         for symbol in config.SYMBOLS:
             tick = mt5.symbol_info_tick(symbol)
-
             if tick is not None:
-                print(
-                    datetime.now(),
-                    symbol,
-                    "Bid:", tick.bid,
-                    "Ask:", tick.ask,
-                )
+                print(datetime.now(), symbol, "Bid:", tick.bid, "Ask:", tick.ask)
 
         print("-" * 48)
         time.sleep(config.TICK_INTERVAL_SECONDS)
 
 
 async def stream_live_ticks_async() -> None:
-    """Stream live ticks to console — async version (used alongside WS server)."""
+    """Stream live ticks to console — async version."""
     print("Streaming live ticks...\n")
 
     while True:
         for symbol in config.SYMBOLS:
             tick = mt5.symbol_info_tick(symbol)
-
             if tick is not None:
-                print(
-                    datetime.now(),
-                    symbol,
-                    "Bid:", tick.bid,
-                    "Ask:", tick.ask,
-                )
+                print(datetime.now(), symbol, "Bid:", tick.bid, "Ask:", tick.ask)
 
         print("-" * 48)
-        await asyncio.sleep(config.TICK_INTERVAL_SECONDS)  # yields control to event loop
+        await asyncio.sleep(config.TICK_INTERVAL_SECONDS)

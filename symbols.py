@@ -2,8 +2,7 @@
 # symbols.py — Symbol management
 # ==========================
 
-import MetaTrader5 as mt5
-
+from connection import mt5   # ← shared mt5linux instance
 import config
 
 
