@@ -2,12 +2,14 @@
 # symbols.py — Symbol management
 # ==========================
 
-from connection import mt5   # ← shared mt5linux instance
+import connection
 import config
 
 
 def enable_symbols() -> None:
     """Enable all configured symbols in the Market Watch."""
+    mt5 = connection.get_mt5()
+
     for symbol in config.SYMBOLS:
         if not mt5.symbol_select(symbol, True):
             print("Failed to enable", symbol)
