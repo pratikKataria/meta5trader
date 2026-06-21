@@ -23,10 +23,10 @@ async def main() -> None:
     symbols.enable_symbols()
     market_data.print_historical_candles()
 
-    print(f"WebSocket server on ws://localhost:{config.WS_PORT}\n")
+    print(f"WebSocket server on ws://0.0.0.0:{config.WS_PORT}\n")
 
     # ── Run WebSocket server only ──
-    async with websockets.serve(ws_server.handler, "localhost", config.WS_PORT):
+    async with websockets.serve(ws_server.handler, "0.0.0.0", config.WS_PORT):
         await ws_server.broadcast_ticks()
 
 
